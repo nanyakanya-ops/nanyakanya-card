@@ -4,20 +4,27 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>遊びの隠れ家 なんやかん屋 会員証</title>
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-  <script src="https://yubinbango.github.io/yubinbango/yubinbango.js" charset="UTF-8"></script>
   <style>
-    body { font-family: sans-serif; background: #1a1a1a; color: #fff; text-align: center; padding: 20px; margin: 0; }
-    .container { max-width: 400px; margin: auto; background: #333; padding: 25px 15px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-    h2 { color: #f39c12; font-size: 1.3rem; margin-bottom: 20px; }
-    input { padding: 12px; margin: 6px 0; border-radius: 5px; border: none; font-size: 1rem; box-sizing: border-box; width: 94%; }
+    /* ▼▼ 隠れ家デザインに合わせたカラー設定 ▼▼ */
+    body { font-family: sans-serif; background: #0f1b29; color: #f4f4f9; text-align: center; padding: 20px; margin: 0; }
+    .container { max-width: 400px; margin: auto; background: #1a2a3a; padding: 25px 15px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.6); border: 1px solid #f9c846; }
+    
+    /* ロゴ画像のスタイル */
+    #shop-logo { width: 80%; max-width: 250px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+    
+    h2 { color: #f9c846; font-size: 1.2rem; margin-bottom: 20px; letter-spacing: 2px; }
+    input { padding: 12px; margin: 6px 0; border-radius: 5px; border: none; font-size: 1rem; box-sizing: border-box; width: 94%; background: #e0e5ec; color: #333; }
     .name-row { display: flex; justify-content: center; gap: 10px; width: 94%; margin: 0 auto; }
     .name-row input { width: 50%; }
-    .address-group { width: 94%; margin: 0 auto; text-align: left; background: #444; padding: 15px 10px; border-radius: 8px; margin: 15px 0; }
-    .address-group p { font-size: 0.8rem; color: #f39c12; margin: 0 0 10px 0; font-weight: bold; }
-    #submitBtn { width: 94%; padding: 15px; background: #f39c12; color: #fff; border: none; border-radius: 5px; font-weight: bold; font-size: 1.1rem; cursor: pointer; }
-    #barcodeCard { display: none; margin-top: 20px; background: #fff; padding: 20px 10px; border-radius: 10px; color: #000; }
+    .address-group { width: 94%; margin: 0 auto; text-align: left; background: #111d2b; padding: 15px 10px; border-radius: 8px; margin: 15px 0; border: 1px solid #2a3f54; }
+    .address-group p { font-size: 0.8rem; color: #f9c846; margin: 0 0 10px 0; font-weight: bold; }
+    
+    /* ゴールドのボタン */
+    #submitBtn { width: 94%; padding: 15px; background: linear-gradient(135deg, #f9c846 0%, #d4af37 100%); color: #0f1b29; border: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem; cursor: pointer; box-shadow: 0 4px 10px rgba(249, 200, 70, 0.3); transition: 0.3s; }
+    #submitBtn:active { transform: scale(0.98); }
+    
+    /* バーコード表示エリア（読み取りやすいようにここは白背景） */
+    #barcodeCard { display: none; margin-top: 20px; background: #fff; padding: 20px 10px; border-radius: 10px; color: #000; box-shadow: 0 0 15px rgba(249, 200, 70, 0.4); }
     #barcodeContainer { width: 100%; display: flex; justify-content: center; overflow: hidden; }
     #barcode { max-width: 100%; height: auto; }
     #membershipNumber { font-weight: bold; font-size: 1.4rem; letter-spacing: 3px; margin-top: 10px; }
@@ -25,8 +32,9 @@
 </head>
 <body>
   <div class="container">
-    <h2>遊びの隠れ家 なんやかん屋</h2>
-    <div id="loading">システム接続中...</div>
+    <img src="logo.jpg" id="shop-logo" alt="なんやかん屋 ロゴ">
+    
+    <div id="loading" style="color: #f9c846;">システム接続中...</div>
     
     <div id="registrationForm" style="display:none;" class="h-adr">
       <span class="p-country-name" style="display:none;">Japan</span>
@@ -51,8 +59,12 @@
     </div>
   </div>
 
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <script src="https://yubinbango.github.io/yubinbango/yubinbango.js" charset="UTF-8"></script>
   <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbxEb_VUP7S81OM7pjCbOT6i4g6UoQApQTl51YHoA7MyT0gw5Yjx3Y4pomq4txC5gfjpEA/exec";
+    // ⚠️⚠️ ここに必ず新しいGASのURLを貼り付けてください！ ⚠️⚠️
+    const GAS_URL = "https://script.google.com/macros/s/あなたの新しいURL/exec";
     let uid = "";
 
     function toFull(s) {
