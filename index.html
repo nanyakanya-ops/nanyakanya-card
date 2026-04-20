@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>遊びの隠れ家 なんやかん屋 会員証</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <script src="https://yubinbango.github.io/yubinbango/yubinbango.js" charset="UTF-8"></script>
+  <style>
+    body { font-family: sans-serif; background: #1a1a1a; color: #fff; text-align: center; padding: 20px; margin: 0; }
+    .container { max-width: 400px; margin: auto; background: #333; padding: 25px 15px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+    h2 { color: #f39c12; font-size: 1.3rem; margin-bottom: 20px; }
+    input { padding: 12px; margin: 6px 0; border-radius: 5px; border: none; font-size: 1rem; box-sizing: border-box; width: 94%; }
+    .name-row { display: flex; justify-content: center; gap: 10px; width: 94%; margin: 0 auto; }
+    .name-row input { width: 50%; }
+    .address-group { width: 94%; margin: 0 auto; text-align: left; background: #444; padding: 15px 10px; border-radius: 8px; margin: 15px 0; }
+    .address-group p { font-size: 0.8rem; color: #f39c12; margin: 0 0 10px 0; font-weight: bold; }
+    #submitBtn { width: 94%; padding: 15px; background: #f39c12; color: #fff; border: none; border-radius: 5px; font-weight: bold; font-size: 1.1rem; cursor: pointer; }
+    #barcodeCard { display: none; margin-top: 20px; background: #fff; padding: 20px 10px; border-radius: 10px; color: #000; }
+    #barcodeContainer { width: 100%; display: flex; justify-content: center; overflow: hidden; }
+    #barcode { max-width: 100%; height: auto; }
+    #membershipNumber { font-weight: bold; font-size: 1.4rem; letter-spacing: 3px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>遊びの隠れ家 なんやかん屋</h2>
+    <div id="loading">システム接続中...</div>
+    
+    <div id="registrationForm" style="display:none;" class="h-adr">
+      <span class="p-country-name" style="display:none;">Japan</span>
+      <div class="name-row"><input type="text" id="ln" placeholder="苗字"><input type="text" id="fn" placeholder="名前"></div>
+      <div class="name-row"><input type="text" id="lnk" placeholder="ミョウジ"><input type="text" id="fnk" placeholder="ナマエ"></div>
+      <div class="address-group">
+        <p>※郵便番号で住所自動入力</p>
+        <input type="tel" id="zip" class="p-postal-code" placeholder="郵便番号">
+        <input type="text" id="pref" class="p-region" placeholder="都道府県">
+        <input type="text" id="city" class="p-locality p-street-address" placeholder="市区町村・番地">
+        <input type="text" id="bldg" class="p-extended-address" placeholder="建物名">
+      </div>
+      <input type="tel" id="phone" placeholder="電話番号">
+      <input type="email" id="email" placeholder="メールアドレス">
+      <button id="submitBtn" onclick="register()">会員証を発行する</button>
+    </div>
+
+    <div id="barcodeCard">
+      <p style="font-size: 0.8rem; margin:0 0 10px 0; color: #666;">デジタル会員証</p>
+      <div id="barcodeContainer"><svg id="barcode"></svg></div>
+      <p id="membershipNumber"></p>
+    </div>
+  </div>
+
+  <script>
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxEb_VUP7S81OM7pjCbOT6i4g6UoQApQTl51YHoA7MyT0gw5Yjx3Y4pomq4txC5gfjpEA/exec";
+    let uid = "";
+
+    function toFull(s) {
+      if(!s) return "";
+      let r = s.replace(/[A-Za-z0-9]/g, m => String.fromCharCode(m.charCodeAt(0) + 0xFEE0));
+      return r.replace(/[\u3041-\u3096]/g, m => String.fromCharCode(m.charCodeAt(0) + 0x60)).replace(/ /g,"　");
+    }
+
+    async function init() {
+      await liff.init({ liffId: "2009831421-Gb85ZD1F" });
+      if (!liff.isLoggedIn()) { liff.login(); return; }
+      const p = await liff.getProfile();
+      uid = p.userId;
+
+      try {
+        const response = await fetch(`${GAS_URL}?action=check&uid=${uid}`);
+        const result = await response.json();
+        if (result.status === "found") {
+          showBarcode(result.memberId);
+        } else {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('registrationForm').style.display = 'block';
+        }
+      } catch (e) {
+        document.getElementById('loading').innerText = "サーバー接続待ち...";
+      }
+    }
+
+    async function register() {
+      const btn = document.getElementById('submitBtn');
+      btn.innerText = "登録中..."; btn.disabled = true;
+      
+      const data = {
+        userId: uid,
+        name: toFull(document.getElementById('ln').value + " " + document.getElementById('fn').value),
+        kana: toFull(document.getElementById('lnk').value + " " + document.getElementById('fnk').value),
+        address: toFull(document.getElementById('pref').value + document.getElementById('city').value + " " + document.getElementById('bldg').value),
+        phone: toFull(document.getElementById('phone').value),
+        email: document.getElementById('email').value
+      };
+
+      try {
+        const response = await fetch(GAS_URL, {
+          method: "POST",
+          body: JSON.stringify(data)
+        });
+        const result = await response.json();
+        if (result.status === "success") {
+          showBarcode(result.memberId);
+        }
+      } catch (e) {
+        alert("登録エラーが発生しました。");
+        btn.innerText = "会員証を発行する"; btn.disabled = false;
+      }
+    }
+
+    function showBarcode(id) {
+      document.getElementById('registrationForm').style.display = 'none';
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('barcodeCard').style.display = 'block';
+      document.getElementById('membershipNumber').innerText = id;
+      JsBarcode("#barcode", id, { format: "CODE39", displayValue: false, width: 2, height: 60 });
+    }
+    init();
+  </script>
+</body>
+</html>
