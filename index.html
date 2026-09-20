@@ -32,7 +32,7 @@
     #submitBtn:disabled { opacity: 0.6; cursor: default; }
 
     /* エラー・案内メッセージ */
-    .msg { width: 94%; margin: 12px auto 0; padding: 10px; border-radius: 6px; font-size: 0.85rem; line-height: 1.5; text-align: left; background: #3a1f24; color: #ffc9c9; border: 1px solid #a33; }
+    .msg { width: 94%; margin: 12px auto 0; padding: 10px; border-radius: 6px; font-size: 0.85rem; line-height: 1.5; text-align: left; background: #3a1f24; color: #ffc9c9; border: 1px solid #a33; white-space: pre-wrap; word-break: break-word; }
     .retry-btn { margin-top: 12px; padding: 10px 20px; background: #2a3f54; color: #f9c846; border: 1px solid #f9c846; border-radius: 6px; font-size: 0.9rem; cursor: pointer; }
 
     /* バーコード表示エリア（読み取りやすいようにここは白背景） */
@@ -150,6 +150,11 @@
       return true;
     }
 
+    // サーバーが原因を添えてきたら画面にも出す。問い合わせ時にそのまま伝えられるようにするため
+    function withDetail(result) {
+      return result && result.detail ? '\n\n［詳細］' + result.detail : '';
+    }
+
     // Content-Type を指定しないこと。指定するとCORSのプリフライトが飛び、GASが応答できない
     async function callGas(payload) {
       payload.idToken = idToken;
@@ -257,7 +262,8 @@
         if (result.status === "unauthorized") {
           if (forceRelogin()) return;
           if (cachedForThisUser) return;           // 控えを表示済みなのでそのままにする
-          showStartupError('ログイン情報の有効期限が切れています。LINEアプリから開き直してください。');
+          showStartupError('ログイン情報を確認できませんでした。LINEアプリから開き直してください。'
+                           + withDetail(result));
           return;
         }
         clearReloginFlag();
@@ -296,7 +302,8 @@
           email: val('email')
         });
         if (result.status === "unauthorized") {
-          showFormError('ログイン情報の有効期限が切れています。LINEアプリから開き直してから、もう一度お試しください。');
+          showFormError('ログイン情報を確認できませんでした。LINEアプリから開き直してから、もう一度お試しください。'
+                        + withDetail(result));
           revert();
         } else if (result.status === "success") {
           clearReloginFlag();

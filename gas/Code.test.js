@@ -68,9 +68,32 @@ console.log('\n[1] 認証：偽装できないこと');
   const r = call(ctx, { action:'check', idToken:'tok' });
   check('別チャネル宛のトークンを弾く', r.status === 'unauthorized'); }
 { const { ctx, fetchCalls } = makeEnv([HEADER], OK('U1'));
-  call(ctx, { action:'check', idToken:'tok' });
+  call(ctx, { action:'check', idToken:'tok/+=&' });
+  const body = fetchCalls[0].opt.payload;
   check('LINEの検証APIを叩いている', fetchCalls[0].url === 'https://api.line.me/oauth2/v2.1/verify');
-  check('client_idが正しい', fetchCalls[0].opt.payload.client_id === '2009831421'); }
+  check('本文が文字列で組み立てられている', typeof body === 'string', typeof body);
+  const form = Object.fromEntries(body.split('&').map(kv => kv.split('=').map(decodeURIComponent)));
+  check('client_idが正しい', form.client_id === '2009831421', body);
+  check('記号を含むトークンが正しくエスケープされる', form.id_token === 'tok/+=&', body);
+  check('Content-Typeがフォーム形式', fetchCalls[0].opt.contentType === 'application/x-www-form-urlencoded'); }
+
+console.log('\n[1b] 失敗の理由が返ること（切り分け用）');
+{ const { ctx } = makeEnv([HEADER], null);
+  const r = call(ctx, { action:'check', idToken:'tok' });
+  check('detail に理由が入る', typeof r.detail === 'string' && r.detail.indexOf('LINEが拒否') === 0, JSON.stringify(r.detail));
+  check('detail にトークンが含まれない', r.detail.indexOf('tok') === -1, r.detail); }
+{ const { ctx } = makeEnv([HEADER], { sub:'U1', aud:'9999999999' });
+  const r = call(ctx, { action:'check', idToken:'tok' });
+  check('チャネルID不一致が分かる', r.detail.indexOf('チャネルID不一致') === 0 && r.detail.indexOf('9999999999') > -1, r.detail); }
+{ const { ctx } = makeEnv([HEADER], 'throw');
+  const r = call(ctx, { action:'check', idToken:'tok' });
+  check('接続不可が分かる', r.detail.indexOf('LINEに接続できない') === 0, r.detail); }
+{ const { ctx } = makeEnv([HEADER], OK('U1'));
+  const r = call(ctx, { action:'check' });
+  check('トークン未送信が分かる', r.detail.indexOf('トークンが送られてきていない') === 0, r.detail); }
+{ const { ctx } = makeEnv([HEADER], OK('U1'));
+  const r = call(ctx, { action:'check', idToken:'tok' });
+  check('成功時は detail を返さない', r.detail === undefined, JSON.stringify(r)); }
 { const { ctx } = makeEnv([HEADER], OK('U1'));
   const r = JSON.parse(ctx.doGet({ parameter: { action:'check', uid:'U_alice' } })._t);
   check('GETでは会員番号を返さない', r.status === 'error' && !r.memberId, JSON.stringify(r)); }
