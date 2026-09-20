@@ -46,18 +46,32 @@ function verifyIdToken_(idToken) {
     return null;   // LINEに繋がらないときは「確認できなかった」として扱う
   }
 
-  if (res.getResponseCode() !== 200) return null;
+  // 失敗した理由は実行ログに残す（トークン本体は出さない）。
+  // Apps Script の「実行数」から確認できる
+  if (res.getResponseCode() !== 200) {
+    console.log('IDトークンの検証に失敗: HTTP ' + res.getResponseCode() + ' ' +
+                res.getContentText().slice(0, 300));
+    return null;
+  }
 
   var payload;
   try {
     payload = JSON.parse(res.getContentText());
   } catch (err) {
+    console.log('IDトークンの検証応答を解釈できなかった');
+    return null;
+  }
+
+  if (!payload.sub) {
+    console.log('IDトークンの検証応答に sub が無い');
     return null;
   }
 
   // aud（このトークンの宛先）が自分のチャネルであることも念のため確かめる
-  if (!payload.sub) return null;
-  if (String(payload.aud) !== LINE_CHANNEL_ID) return null;
+  if (String(payload.aud) !== LINE_CHANNEL_ID) {
+    console.log('チャネルIDが一致しない: 期待=' + LINE_CHANNEL_ID + ' 実際=' + payload.aud);
+    return null;
+  }
 
   return String(payload.sub);
 }
