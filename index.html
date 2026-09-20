@@ -13,12 +13,18 @@
     #shop-logo { width: 80%; max-width: 250px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
 
     h2 { color: #f9c846; font-size: 1.2rem; margin-bottom: 20px; letter-spacing: 2px; }
-    input { padding: 12px; margin: 6px 0; border-radius: 5px; border: none; font-size: 1rem; box-sizing: border-box; width: 94%; background: #e0e5ec; color: #333; }
+    input[type="text"], input[type="tel"], input[type="email"] { padding: 12px; margin: 6px 0; border-radius: 5px; border: none; font-size: 1rem; box-sizing: border-box; width: 94%; background: #e0e5ec; color: #333; }
     input.invalid { box-shadow: 0 0 0 2px #ff6b6b; }
     .name-row { display: flex; justify-content: center; gap: 10px; width: 94%; margin: 0 auto; }
     .name-row input { width: 50%; }
     .address-group { width: 94%; margin: 15px auto; text-align: left; background: #111d2b; padding: 15px 10px; border-radius: 8px; border: 1px solid #2a3f54; }
     .address-group p { font-size: 0.8rem; color: #f9c846; margin: 0 0 10px 0; font-weight: bold; }
+
+    /* 個人情報の取り扱いへの同意 */
+    .consent { display: flex; align-items: flex-start; gap: 8px; width: 94%; margin: 15px auto; text-align: left; font-size: 0.85rem; line-height: 1.5; cursor: pointer; }
+    .consent input { width: 20px; height: 20px; flex: 0 0 auto; margin-top: 1px; }
+    .consent.invalid { outline: 2px solid #ff6b6b; outline-offset: 6px; border-radius: 4px; }
+    .consent a { color: #f9c846; }
 
     /* ゴールドのボタン */
     #submitBtn { width: 94%; padding: 15px; background: linear-gradient(135deg, #f9c846 0%, #d4af37 100%); color: #0f1b29; border: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem; cursor: pointer; box-shadow: 0 4px 10px rgba(249, 200, 70, 0.3); transition: 0.3s; }
@@ -34,6 +40,13 @@
     #barcodeContainer { width: 100%; display: flex; justify-content: center; overflow: hidden; }
     #barcode { max-width: 100%; height: auto; }
     #membershipNumber { font-weight: bold; font-size: 1.4rem; letter-spacing: 3px; margin-top: 10px; }
+    #offlineNote { display: none; margin: 10px 0 0; font-size: 0.75rem; color: #888; }
+
+    /* 店舗情報（古物営業法に基づく表示を含む） */
+    .shop-info { max-width: 400px; margin: 25px auto 0; font-size: 0.75rem; line-height: 1.7; color: #8fa3b8; }
+    .shop-info .shop-name { color: #f9c846; font-weight: bold; font-size: 0.85rem; margin: 0 0 8px; }
+    .shop-info p { margin: 0 0 8px; }
+    .shop-info a { color: #f9c846; }
   </style>
 </head>
 <body>
@@ -59,6 +72,10 @@
       </div>
       <input type="tel" id="phone" placeholder="電話番号">
       <input type="email" id="email" placeholder="メールアドレス（任意）">
+      <label class="consent" id="consentRow">
+        <input type="checkbox" id="agree">
+        <span><a href="https://nanyakanya.net/pages/line-membership-privacy-policy" target="_blank" rel="noopener">個人情報の取り扱いについて</a>を読み、同意します</span>
+      </label>
       <button id="submitBtn" onclick="register()">会員証を発行する</button>
       <div class="msg" id="formError" style="display:none;"></div>
     </div>
@@ -67,8 +84,17 @@
       <p style="font-size: 0.8rem; margin:0 0 10px 0; color: #666;">デジタル会員証</p>
       <div id="barcodeContainer"><svg id="barcode"></svg></div>
       <p id="membershipNumber"></p>
+      <p id="offlineNote">オフライン表示（前回取得した会員証）</p>
     </div>
   </div>
+
+  <footer class="shop-info">
+    <p class="shop-name">遊びの隠れ家 なんやかん屋</p>
+    <p>〒173-0034 東京都板橋区幸町1-14 アトラス大山102<br>東武東上線「大山駅」より徒歩5分</p>
+    <p>営業時間 12:00〜20:00（定休日なし）<br>TEL 03-5926-9889／info@nanyakanya.net</p>
+    <p>古物商許可 東京都公安委員会 第305591506374号</p>
+    <p><a href="https://nanyakanya.net/pages/line-membership-privacy-policy" target="_blank" rel="noopener">個人情報の取り扱いについて</a></p>
+  </footer>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
@@ -76,6 +102,7 @@
   <script>
     // ⚠️⚠️ ここに必ず新しいGASのURLを貼り付けてください！ ⚠️⚠️
     const GAS_URL = "https://script.google.com/macros/s/AKfycbxEb_VUP7S81OM7pjCbOT6i4g6UoQApQTl51YHoA7MyT0gw5Yjx3Y4pomq4txC5gfjpEA/exec";
+    const CACHE_KEY = "nk_member";
     let uid = "";
 
     function toFull(s) {
@@ -84,7 +111,20 @@
       return r.replace(/[ぁ-ゖ]/g, m => String.fromCharCode(m.charCodeAt(0) + 0x60)).replace(/ /g,"　");
     }
 
+    function toHalf(s) {
+      return s.replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0));
+    }
+
     function val(id) { return document.getElementById(id).value.trim(); }
+
+    // 会員番号の控え。圏外やサーバー障害でも会員証を提示できるようにする。
+    // プライベートブラウズ等で localStorage が使えないことがあるので必ず握りつぶす
+    function saveCache(memberId) {
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ uid: uid, memberId: memberId })); } catch (e) {}
+    }
+    function loadCache() {
+      try { return JSON.parse(localStorage.getItem(CACHE_KEY) || "null"); } catch (e) { return null; }
+    }
 
     function showStartupError(text) {
       document.getElementById('loading').style.display = 'none';
@@ -100,7 +140,11 @@
       ['ln','fn','lnk','fnk','pref','city','phone','email'].forEach(id => {
         document.getElementById(id).classList.remove('invalid');
       });
-      (badIds || []).forEach(id => document.getElementById(id).classList.add('invalid'));
+      document.getElementById('consentRow').classList.remove('invalid');
+      (badIds || []).forEach(id => {
+        const el = document.getElementById(id === 'agree' ? 'consentRow' : id);
+        if (el) el.classList.add('invalid');
+      });
       box.scrollIntoView({ block: 'nearest' });
     }
 
@@ -132,44 +176,59 @@
         return false;
       }
 
+      if (!document.getElementById('agree').checked) {
+        showFormError('個人情報の取り扱いについてご確認のうえ、同意にチェックしてください。', ['agree']);
+        return false;
+      }
+
       document.getElementById('formError').style.display = 'none';
       return true;
     }
 
-    function toHalf(s) {
-      return s.replace(/[０-９]/g, m => String.fromCharCode(m.charCodeAt(0) - 0xFEE0));
-    }
-
     async function init() {
+      const cache = loadCache();
+
       try {
         await liff.init({ liffId: "2009831421-Gb85ZD1F" });
       } catch (e) {
+        // LINEに繋がらなくても、控えがあれば会員証だけは出す
+        if (cache && cache.memberId) { showBarcode(cache.memberId, true); return; }
         showStartupError('LINEとの接続に失敗しました。通信状況を確認して、もう一度お試しください。それでも表示されない場合は店舗スタッフへお声がけください。');
         return;
       }
 
       if (!liff.isLoggedIn()) { liff.login(); return; }
 
-      let uidLocal;
       try {
         const p = await liff.getProfile();
-        uidLocal = p.userId;
+        uid = p.userId;
       } catch (e) {
+        if (cache && cache.memberId) { showBarcode(cache.memberId, true); return; }
         showStartupError('LINEの情報を取得できませんでした。もう一度お試しください。');
         return;
       }
-      uid = uidLocal;
+
+      // 同じ人の控えがあれば先に出してしまう。待たされず、圏外でも提示できる
+      const cachedForThisUser = cache && cache.uid === uid ? cache.memberId : null;
+      if (cachedForThisUser) showBarcode(cachedForThisUser, true);
 
       try {
         const response = await fetch(`${GAS_URL}?action=check&uid=${uid}`);
         const result = await response.json();
         if (result.status === "found") {
-          showBarcode(result.memberId);
+          saveCache(result.memberId);
+          showBarcode(result.memberId);            // 控えを出していた場合はここで最新に差し替わる
+        } else if (cachedForThisUser) {
+          // サーバー上に無いなら控えは古い。破棄して登録フォームへ戻す
+          try { localStorage.removeItem(CACHE_KEY); } catch (e) {}
+          document.getElementById('barcodeCard').style.display = 'none';
+          document.getElementById('registrationForm').style.display = 'block';
         } else {
           document.getElementById('loading').style.display = 'none';
           document.getElementById('registrationForm').style.display = 'block';
         }
       } catch (e) {
+        if (cachedForThisUser) return;             // 控えを表示済みなのでそのままにする
         showStartupError('サーバーに接続できませんでした。電波の良い場所でもう一度お試しください。');
       }
     }
@@ -198,6 +257,7 @@
         });
         const result = await response.json();
         if (result.status === "success") {
+          saveCache(result.memberId);
           showBarcode(result.memberId);
         } else {
           // サーバーが success 以外を返した場合もボタンを戻す（押し直せるようにする）
@@ -210,22 +270,25 @@
       }
     }
 
-    function showBarcode(id) {
+    function showBarcode(id, fromCache) {
       document.getElementById('registrationForm').style.display = 'none';
       document.getElementById('loading').style.display = 'none';
       document.getElementById('startupError').style.display = 'none';
       document.getElementById('barcodeCard').style.display = 'block';
       document.getElementById('membershipNumber').innerText = id;
+      document.getElementById('offlineNote').style.display = fromCache ? 'block' : 'none';
 
       // CODE39 は大文字英数と一部記号しか扱えない。表現できない文字が混ざると
       // 描画されず白紙になるため、大文字化して判定し、駄目なら CODE128 に逃がす
       const value = String(id).toUpperCase();
       const format = /^[0-9A-Z\-. $\/+%]+$/.test(value) ? "CODE39" : "CODE128";
+      const container = document.getElementById('barcodeContainer');
       try {
         JsBarcode("#barcode", value, { format: format, displayValue: false, width: 2, height: 60 });
+        container.style.display = 'flex';
       } catch (e) {
         // バーコードが出せなくても会員番号は読めるようにしておく
-        document.getElementById('barcodeContainer').style.display = 'none';
+        container.style.display = 'none';
       }
     }
     init();
