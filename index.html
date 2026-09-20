@@ -140,6 +140,16 @@
       try { sessionStorage.removeItem(RELOGIN_KEY); } catch (e) {}
     }
 
+    // IDトークンが古いときは liff.login() だけでは新しくならない。
+    // LIFFが「ログイン済み」と判断して何もせず戻り、同じ古いトークンのままになるため、
+    // 一度ログアウトしてから入り直させる
+    function forceRelogin() {
+      if (!canRelogin()) return false;
+      try { liff.logout(); } catch (e) {}
+      liff.login();
+      return true;
+    }
+
     // Content-Type を指定しないこと。指定するとCORSのプリフライトが飛び、GASが応答できない
     async function callGas(payload) {
       payload.idToken = idToken;
@@ -236,7 +246,7 @@
       // サーバーはこのトークンをLINEに照会して本人を確認する。取れないと何もできない
       idToken = liff.getIDToken();
       if (!idToken) {
-        if (canRelogin()) { liff.login(); return; }
+        if (forceRelogin()) return;
         if (cachedForThisUser) return;
         showStartupError('LINEのログイン情報を取得できませんでした。LINEアプリから開き直してください。それでも表示されない場合は店舗スタッフへお声がけください。');
         return;
@@ -245,7 +255,7 @@
       try {
         const result = await callGas({ action: "check" });
         if (result.status === "unauthorized") {
-          if (canRelogin()) { liff.login(); return; }
+          if (forceRelogin()) return;
           if (cachedForThisUser) return;           // 控えを表示済みなのでそのままにする
           showStartupError('ログイン情報の有効期限が切れています。LINEアプリから開き直してください。');
           return;
