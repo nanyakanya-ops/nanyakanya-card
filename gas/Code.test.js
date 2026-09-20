@@ -1,4 +1,8 @@
 /**
+ * ⚠️ このファイルは Apps Script に貼り付けないでください。
+ *    貼るのは Code.gs のほうです。これは Node.js 用のテストで、
+ *    Apps Script に貼ると「ReferenceError: require is not defined」になります。
+ *
  * Code.gs のテスト。
  *
  * Apps Script の実行環境（SpreadsheetApp / UrlFetchApp / LockService など）を

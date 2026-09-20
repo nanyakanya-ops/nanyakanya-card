@@ -263,3 +263,24 @@ function doPost(e) {
 function doGet(e) {
   return json_({ status: 'error', message: 'この方法では利用できません。LINEアプリから会員証を開いてください。' });
 }
+
+
+/**
+ * 初回の承認用。一度だけ手で実行して、LINEへの外部通信を許可する。
+ *
+ * doGet や doPost を実行しても外部通信をしないため、UrlFetchApp の権限
+ * （script.external_request）を求める承認画面が出ない。その状態で公開すると
+ * 「UrlFetchApp.fetch を呼び出す権限がありません」で止まる。
+ *
+ * 実行ログに HTTP400 と出れば、LINEまで到達できている証拠
+ * （dummy という偽トークンを送っているので、400 が返るのが正解）。
+ */
+function authorizeAndTestLine() {
+  var res = UrlFetchApp.fetch('https://api.line.me/oauth2/v2.1/verify', {
+    method: 'post',
+    contentType: 'application/x-www-form-urlencoded',
+    payload: 'id_token=dummy&client_id=' + LINE_CHANNEL_ID,
+    muteHttpExceptions: true
+  });
+  console.log('HTTP ' + res.getResponseCode() + ' / ' + res.getContentText());
+}
