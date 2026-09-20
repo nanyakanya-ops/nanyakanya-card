@@ -103,7 +103,9 @@
     // ⚠️⚠️ ここに必ず新しいGASのURLを貼り付けてください！ ⚠️⚠️
     const GAS_URL = "https://script.google.com/macros/s/AKfycbxEb_VUP7S81OM7pjCbOT6i4g6UoQApQTl51YHoA7MyT0gw5Yjx3Y4pomq4txC5gfjpEA/exec";
     const CACHE_KEY = "nk_member";
-    let uid = "";
+    const RELOGIN_KEY = "nk_relogin";
+    let uid = "";        // 控えを誰のものか見分けるためだけに使う（サーバーへは送らない）
+    let idToken = "";    // サーバーはこれをLINEに照会して本人を特定する
 
     function toFull(s) {
       if(!s) return "";
@@ -124,6 +126,25 @@
     }
     function loadCache() {
       try { return JSON.parse(localStorage.getItem(CACHE_KEY) || "null"); } catch (e) { return null; }
+    }
+
+    // 再ログインは1往復まで。判定できない端末ではループを避けて再ログインしない
+    function canRelogin() {
+      try {
+        if (sessionStorage.getItem(RELOGIN_KEY) === "1") return false;
+        sessionStorage.setItem(RELOGIN_KEY, "1");
+        return true;
+      } catch (e) { return false; }
+    }
+    function clearReloginFlag() {
+      try { sessionStorage.removeItem(RELOGIN_KEY); } catch (e) {}
+    }
+
+    // Content-Type を指定しないこと。指定するとCORSのプリフライトが飛び、GASが応答できない
+    async function callGas(payload) {
+      payload.idToken = idToken;
+      const response = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) });
+      return await response.json();
     }
 
     function showStartupError(text) {
@@ -212,9 +233,24 @@
       const cachedForThisUser = cache && cache.uid === uid ? cache.memberId : null;
       if (cachedForThisUser) showBarcode(cachedForThisUser, true);
 
+      // サーバーはこのトークンをLINEに照会して本人を確認する。取れないと何もできない
+      idToken = liff.getIDToken();
+      if (!idToken) {
+        if (canRelogin()) { liff.login(); return; }
+        if (cachedForThisUser) return;
+        showStartupError('LINEのログイン情報を取得できませんでした。LINEアプリから開き直してください。それでも表示されない場合は店舗スタッフへお声がけください。');
+        return;
+      }
+
       try {
-        const response = await fetch(`${GAS_URL}?action=check&uid=${uid}`);
-        const result = await response.json();
+        const result = await callGas({ action: "check" });
+        if (result.status === "unauthorized") {
+          if (canRelogin()) { liff.login(); return; }
+          if (cachedForThisUser) return;           // 控えを表示済みなのでそのままにする
+          showStartupError('ログイン情報の有効期限が切れています。LINEアプリから開き直してください。');
+          return;
+        }
+        clearReloginFlag();
         if (result.status === "found") {
           saveCache(result.memberId);
           showBarcode(result.memberId);            // 控えを出していた場合はここで最新に差し替わる
@@ -240,23 +276,20 @@
       const revert = () => { btn.innerText = "会員証を発行する"; btn.disabled = false; };
       btn.innerText = "登録中..."; btn.disabled = true;
 
-      const data = {
-        userId: uid,
-        name: toFull(val('ln') + " " + val('fn')),
-        kana: toFull(val('lnk') + " " + val('fnk')),
-        address: toFull(val('pref') + val('city') + " " + val('bldg')),
-        phone: toFull(val('phone')),
-        email: val('email')
-      };
-
       try {
-        // Content-Type を指定しないこと。指定するとCORSのプリフライトが飛び、GASが応答できない
-        const response = await fetch(GAS_URL, {
-          method: "POST",
-          body: JSON.stringify(data)
+        const result = await callGas({
+          action: "register",
+          name: toFull(val('ln') + " " + val('fn')),
+          kana: toFull(val('lnk') + " " + val('fnk')),
+          address: toFull(val('pref') + val('city') + " " + val('bldg')),
+          phone: toFull(val('phone')),
+          email: val('email')
         });
-        const result = await response.json();
-        if (result.status === "success") {
+        if (result.status === "unauthorized") {
+          showFormError('ログイン情報の有効期限が切れています。LINEアプリから開き直してから、もう一度お試しください。');
+          revert();
+        } else if (result.status === "success") {
+          clearReloginFlag();
           saveCache(result.memberId);
           showBarcode(result.memberId);
         } else {
