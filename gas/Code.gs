@@ -28,29 +28,46 @@ function json_(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+// 直前の検証がなぜ失敗したかを覚えておく。原因の切り分けにだけ使う。
+// IDトークン本体は絶対に入れない
+var lastVerifyError = '';
+
 /**
  * IDトークンをLINEに照会し、確認できたLINE ID(sub)を返す。確認できなければ null。
  */
 function verifyIdToken_(idToken) {
-  if (!idToken) return null;
+  lastVerifyError = '';
+
+  if (!idToken) {
+    lastVerifyError = 'トークンが送られてきていない';
+    return null;
+  }
+
+  // payload をオブジェクトで渡すと、contentType を明示したときの変換のされ方が
+  // はっきりしない。フォーム形式の文字列を自分で組み立てて曖昧さをなくす
+  var body = 'id_token=' + encodeURIComponent(idToken) +
+             '&client_id=' + encodeURIComponent(LINE_CHANNEL_ID);
 
   var res;
   try {
     res = UrlFetchApp.fetch('https://api.line.me/oauth2/v2.1/verify', {
       method: 'post',
       contentType: 'application/x-www-form-urlencoded',
-      payload: { id_token: idToken, client_id: LINE_CHANNEL_ID },
+      payload: body,
       muteHttpExceptions: true
     });
   } catch (err) {
+    lastVerifyError = 'LINEに接続できない: ' + err;
+    console.log(lastVerifyError);
     return null;   // LINEに繋がらないときは「確認できなかった」として扱う
   }
 
   // 失敗した理由は実行ログに残す（トークン本体は出さない）。
   // Apps Script の「実行数」から確認できる
   if (res.getResponseCode() !== 200) {
-    console.log('IDトークンの検証に失敗: HTTP ' + res.getResponseCode() + ' ' +
-                res.getContentText().slice(0, 300));
+    lastVerifyError = 'LINEが拒否 HTTP' + res.getResponseCode() + ' ' +
+                      res.getContentText().slice(0, 200);
+    console.log(lastVerifyError);
     return null;
   }
 
@@ -58,18 +75,21 @@ function verifyIdToken_(idToken) {
   try {
     payload = JSON.parse(res.getContentText());
   } catch (err) {
-    console.log('IDトークンの検証応答を解釈できなかった');
+    lastVerifyError = 'LINEの応答を解釈できない';
+    console.log(lastVerifyError);
     return null;
   }
 
   if (!payload.sub) {
-    console.log('IDトークンの検証応答に sub が無い');
+    lastVerifyError = 'LINEの応答に sub が無い';
+    console.log(lastVerifyError);
     return null;
   }
 
   // aud（このトークンの宛先）が自分のチャネルであることも念のため確かめる
   if (String(payload.aud) !== LINE_CHANNEL_ID) {
-    console.log('チャネルIDが一致しない: 期待=' + LINE_CHANNEL_ID + ' 実際=' + payload.aud);
+    lastVerifyError = 'チャネルID不一致 期待=' + LINE_CHANNEL_ID + ' 実際=' + payload.aud;
+    console.log(lastVerifyError);
     return null;
   }
 
@@ -222,7 +242,12 @@ function doPost(e) {
   // ここが要。クライアントの申告ではなく、LINEに確認したIDだけを使う
   var uid = verifyIdToken_(params.idToken);
   if (!uid) {
-    return json_({ status: 'unauthorized', message: 'ログイン情報を確認できませんでした。LINEアプリから開き直してください。' });
+    // detail は原因の切り分け用。トークン本体は含まない
+    return json_({
+      status: 'unauthorized',
+      message: 'ログイン情報を確認できませんでした。LINEアプリから開き直してください。',
+      detail: lastVerifyError
+    });
   }
 
   if (params.action === 'check') return handleCheck_(uid);
