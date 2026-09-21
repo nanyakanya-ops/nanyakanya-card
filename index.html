@@ -5,55 +5,64 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>遊びの隠れ家 なんやかん屋 会員証</title>
   <style>
-    /* ▼▼ 隠れ家デザインに合わせたカラー設定 ▼▼ */
-    body { font-family: sans-serif; background: #0f1b29; color: #f4f4f9; text-align: center; padding: 20px; margin: 0; }
-    .container { max-width: 400px; margin: auto; background: #1a2a3a; padding: 25px 15px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.6); border: 1px solid #f9c846; }
+    /* ▼▼ 浮世絵デザイン（藍・紅・金・和紙）のカラー設定 ▼▼ */
+    :root {
+      --ai: #1b3a5c;        /* 藍色 */
+      --ai-deep: #12263d;   /* 深藍 */
+      --beni: #c94c3f;      /* 紅色 */
+      --gold: #c9a15a;      /* 金 */
+      --gold-light: #e3c780;
+      --washi: #f4ecd8;     /* 和紙 */
+    }
+    body { font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; background: var(--ai-deep); background-image: radial-gradient(ellipse at top, rgba(201,161,90,0.08), transparent 60%); color: var(--washi); text-align: center; padding: 20px; margin: 0; }
+    .container { max-width: 400px; margin: auto; background: var(--ai); padding: 25px 15px; border-radius: 4px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); border: 1px solid var(--gold); position: relative; }
+    .container::before { content: ""; position: absolute; inset: 6px; border: 1px solid rgba(201,161,90,0.4); border-radius: 2px; pointer-events: none; }
 
     /* ロゴ画像のスタイル */
-    #shop-logo { width: 80%; max-width: 250px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+    #shop-logo { width: 80%; max-width: 250px; border-radius: 4px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 1px solid var(--gold); }
 
-    h2 { color: #f9c846; font-size: 1.2rem; margin-bottom: 20px; letter-spacing: 2px; }
-    input[type="text"], input[type="tel"], input[type="email"] { padding: 12px; margin: 6px 0; border-radius: 5px; border: none; font-size: 1rem; box-sizing: border-box; width: 94%; background: #e0e5ec; color: #333; }
-    input.invalid { box-shadow: 0 0 0 2px #ff6b6b; }
+    h2 { color: var(--gold-light); font-size: 1.2rem; margin-bottom: 20px; letter-spacing: 2px; }
+    input[type="text"], input[type="tel"], input[type="email"] { padding: 12px; margin: 6px 0; border-radius: 3px; border: 1px solid var(--gold); font-size: 1rem; box-sizing: border-box; width: 94%; background: var(--washi); color: #2a2016; font-family: inherit; }
+    input.invalid { box-shadow: 0 0 0 2px var(--beni); }
     .name-row { display: flex; justify-content: center; gap: 10px; width: 94%; margin: 0 auto; }
     .name-row input { width: 50%; }
-    .address-group { width: 94%; margin: 15px auto; text-align: left; background: #111d2b; padding: 15px 10px; border-radius: 8px; border: 1px solid #2a3f54; }
-    .address-group p { font-size: 0.8rem; color: #f9c846; margin: 0 0 10px 0; font-weight: bold; }
+    .address-group { width: 94%; margin: 15px auto; text-align: left; background: var(--ai-deep); padding: 15px 10px; border-radius: 4px; border: 1px solid rgba(201,161,90,0.5); }
+    .address-group p { font-size: 0.8rem; color: var(--gold-light); margin: 0 0 10px 0; font-weight: bold; }
 
     /* 個人情報の取り扱いへの同意 */
     .consent { display: flex; align-items: flex-start; gap: 8px; width: 94%; margin: 15px auto; text-align: left; font-size: 0.85rem; line-height: 1.5; cursor: pointer; }
     .consent input { width: 20px; height: 20px; flex: 0 0 auto; margin-top: 1px; }
-    .consent.invalid { outline: 2px solid #ff6b6b; outline-offset: 6px; border-radius: 4px; }
-    .consent a { color: #f9c846; }
+    .consent.invalid { outline: 2px solid var(--beni); outline-offset: 6px; border-radius: 4px; }
+    .consent a { color: var(--gold-light); }
 
-    /* ゴールドのボタン */
-    #submitBtn { width: 94%; padding: 15px; background: linear-gradient(135deg, #f9c846 0%, #d4af37 100%); color: #0f1b29; border: none; border-radius: 8px; font-weight: bold; font-size: 1.1rem; cursor: pointer; box-shadow: 0 4px 10px rgba(249, 200, 70, 0.3); transition: 0.3s; }
+    /* 紅×金のボタン */
+    #submitBtn { width: 94%; padding: 15px; background: linear-gradient(135deg, var(--beni) 0%, #a83a2f 100%); color: var(--washi); border: 1px solid var(--gold); border-radius: 4px; font-weight: bold; font-size: 1.1rem; cursor: pointer; box-shadow: 0 4px 10px rgba(201, 76, 63, 0.4); transition: 0.3s; font-family: inherit; letter-spacing: 1px; }
     #submitBtn:active { transform: scale(0.98); }
     #submitBtn:disabled { opacity: 0.6; cursor: default; }
 
     /* エラー・案内メッセージ */
-    .msg { width: 94%; margin: 12px auto 0; padding: 10px; border-radius: 6px; font-size: 0.85rem; line-height: 1.5; text-align: left; background: #3a1f24; color: #ffc9c9; border: 1px solid #a33; white-space: pre-wrap; word-break: break-word; }
-    .retry-btn { margin-top: 12px; padding: 10px 20px; background: #2a3f54; color: #f9c846; border: 1px solid #f9c846; border-radius: 6px; font-size: 0.9rem; cursor: pointer; }
+    .msg { width: 94%; margin: 12px auto 0; padding: 10px; border-radius: 4px; font-size: 0.85rem; line-height: 1.5; text-align: left; background: #3a1f24; color: #ffc9c9; border: 1px solid var(--beni); white-space: pre-wrap; word-break: break-word; }
+    .retry-btn { margin-top: 12px; padding: 10px 20px; background: var(--ai-deep); color: var(--gold-light); border: 1px solid var(--gold); border-radius: 4px; font-size: 0.9rem; cursor: pointer; }
 
     /* バーコード表示エリア（読み取りやすいようにここは白背景） */
-    #barcodeCard { display: none; margin-top: 20px; background: #fff; padding: 20px 10px; border-radius: 10px; color: #000; box-shadow: 0 0 15px rgba(249, 200, 70, 0.4); }
+    #barcodeCard { display: none; margin-top: 20px; background: var(--washi); padding: 20px 10px; border-radius: 4px; color: #2a2016; box-shadow: 0 0 15px rgba(201, 161, 90, 0.4); border: 1px solid var(--gold); }
     #barcodeContainer { width: 100%; display: flex; justify-content: center; overflow: hidden; }
     #barcode { max-width: 100%; height: auto; }
     #membershipNumber { font-weight: bold; font-size: 1.4rem; letter-spacing: 3px; margin-top: 10px; }
     #offlineNote { display: none; margin: 10px 0 0; font-size: 0.75rem; color: #888; }
 
     /* 店舗情報（古物営業法に基づく表示を含む） */
-    .shop-info { max-width: 400px; margin: 25px auto 0; font-size: 0.75rem; line-height: 1.7; color: #8fa3b8; }
-    .shop-info .shop-name { color: #f9c846; font-weight: bold; font-size: 0.85rem; margin: 0 0 8px; }
+    .shop-info { max-width: 400px; margin: 25px auto 0; font-size: 0.75rem; line-height: 1.7; color: #a8b8c8; }
+    .shop-info .shop-name { color: var(--gold-light); font-weight: bold; font-size: 0.85rem; margin: 0 0 8px; }
     .shop-info p { margin: 0 0 8px; }
-    .shop-info a { color: #f9c846; }
+    .shop-info a { color: var(--gold-light); }
   </style>
 </head>
 <body>
   <div class="container">
     <img src="logo.jpg" id="shop-logo" alt="なんやかん屋 ロゴ">
 
-    <div id="loading" style="color: #f9c846;">システム接続中...</div>
+    <div id="loading" style="color: #e3c780;">システム接続中...</div>
     <div id="startupError" style="display:none;">
       <div class="msg" id="startupErrorMsg"></div>
       <button class="retry-btn" onclick="location.reload()">もう一度試す</button>
@@ -328,13 +337,13 @@
       document.getElementById('membershipNumber').innerText = id;
       document.getElementById('offlineNote').style.display = fromCache ? 'block' : 'none';
 
-      // CODE39 は大文字英数と一部記号しか扱えない。表現できない文字が混ざると
-      // 描画されず白紙になるため、大文字化して判定し、駄目なら CODE128 に逃がす
-      const value = String(id).toUpperCase();
-      const format = /^[0-9A-Z\-. $\/+%]+$/.test(value) ? "CODE39" : "CODE128";
+      // 会員番号が短い数字だとバーが細くなりすぎてレジのスキャナーが読み取れないため、
+      // 4桁にゼロ埋めしてから CODE128 で描画し、バー幅・高さも大きくして読み取り精度を上げる
+      const digitsOnly = /^[0-9]+$/.test(String(id));
+      const value = digitsOnly ? String(id).padStart(4, '0') : String(id).toUpperCase();
       const container = document.getElementById('barcodeContainer');
       try {
-        JsBarcode("#barcode", value, { format: format, displayValue: false, width: 2, height: 60 });
+        JsBarcode("#barcode", value, { format: "CODE128", displayValue: false, width: 3, height: 90, margin: 10 });
         container.style.display = 'flex';
       } catch (e) {
         // バーコードが出せなくても会員番号は読めるようにしておく
