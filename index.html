@@ -5,18 +5,32 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>遊びの隠れ家 なんやかん屋 会員証</title>
   <style>
-    /* ▼▼ 浮世絵デザイン（藍・紅・金・和紙）のカラー設定 ▼▼ */
+    /* ▼▼ 浮世絵デザイン（藍・紅・金・和紙、青海波文様）のカラー設定 ▼▼ */
     :root {
-      --ai: #1b3a5c;        /* 藍色 */
-      --ai-deep: #12263d;   /* 深藍 */
-      --beni: #c94c3f;      /* 紅色 */
+      --ai: #16324f;        /* 藍色 */
+      --ai-deep: #0a1c2e;   /* 深藍 */
+      --beni: #c9402f;      /* 紅色 */
+      --beni-deep: #8f2a1f;
       --gold: #c9a15a;      /* 金 */
-      --gold-light: #e3c780;
+      --gold-light: #e8c878;
       --washi: #f4ecd8;     /* 和紙 */
     }
-    body { font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; background: var(--ai-deep); background-image: radial-gradient(ellipse at top, rgba(201,161,90,0.08), transparent 60%); color: var(--washi); text-align: center; padding: 20px; margin: 0; }
-    .container { max-width: 400px; margin: auto; background: var(--ai); padding: 25px 15px; border-radius: 4px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); border: 1px solid var(--gold); position: relative; }
-    .container::before { content: ""; position: absolute; inset: 6px; border: 1px solid rgba(201,161,90,0.4); border-radius: 2px; pointer-events: none; }
+    /* 青海波（せいがいは）文様。同心の波弧を敷き詰めた、浮世絵で馴染み深い地模様 */
+    body {
+      font-family: "Hiragino Mincho ProN", "Yu Mincho", serif;
+      background-color: var(--ai-deep);
+      background-image:
+        radial-gradient(circle at 0 100%, transparent 24%, rgba(201,161,90,0.16) 25%, rgba(201,161,90,0.16) 29%, transparent 30%, transparent 34%, rgba(201,161,90,0.10) 35%, rgba(201,161,90,0.10) 39%, transparent 40%),
+        radial-gradient(circle at 100% 100%, transparent 24%, rgba(201,161,90,0.16) 25%, rgba(201,161,90,0.16) 29%, transparent 30%, transparent 34%, rgba(201,161,90,0.10) 35%, rgba(201,161,90,0.10) 39%, transparent 40%);
+      background-size: 64px 32px;
+      color: var(--washi); text-align: center; padding: 20px; margin: 0;
+    }
+    .container { max-width: 400px; margin: auto; background: var(--ai); border-radius: 6px; box-shadow: 0 10px 28px rgba(0,0,0,0.7); border: 2px solid var(--gold); position: relative; overflow: hidden; }
+    .container::after { content: ""; position: absolute; inset: 5px; border: 1px solid rgba(232,200,120,0.5); border-radius: 3px; pointer-events: none; }
+    .card-inner { padding: 25px 15px; }
+
+    /* 紅色の題箋（だいせん）帯 */
+    .kanban { background: linear-gradient(180deg, var(--beni) 0%, var(--beni-deep) 100%); color: var(--washi); padding: 10px 0; font-size: 0.95rem; letter-spacing: 4px; font-weight: bold; border-bottom: 2px solid var(--gold); text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
 
     /* ロゴ画像のスタイル */
     #shop-logo { width: 80%; max-width: 250px; border-radius: 4px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 1px solid var(--gold); }
@@ -44,11 +58,11 @@
     .msg { width: 94%; margin: 12px auto 0; padding: 10px; border-radius: 4px; font-size: 0.85rem; line-height: 1.5; text-align: left; background: #3a1f24; color: #ffc9c9; border: 1px solid var(--beni); white-space: pre-wrap; word-break: break-word; }
     .retry-btn { margin-top: 12px; padding: 10px 20px; background: var(--ai-deep); color: var(--gold-light); border: 1px solid var(--gold); border-radius: 4px; font-size: 0.9rem; cursor: pointer; }
 
-    /* バーコード表示エリア（読み取りやすいようにここは白背景） */
-    #barcodeCard { display: none; margin-top: 20px; background: var(--washi); padding: 20px 10px; border-radius: 4px; color: #2a2016; box-shadow: 0 0 15px rgba(201, 161, 90, 0.4); border: 1px solid var(--gold); }
+    /* バーコード表示エリア（読み取りやすいようにここは白背景。紅×金の二重枠で額装のように見せる） */
+    #barcodeCard { display: none; margin-top: 20px; background: var(--washi); padding: 20px 10px; border-radius: 4px; color: #2a2016; box-shadow: 0 0 18px rgba(201, 64, 47, 0.35); border: 3px double var(--beni); }
     #barcodeContainer { width: 100%; display: flex; justify-content: center; overflow: hidden; }
     #barcode { max-width: 100%; height: auto; }
-    #membershipNumber { font-weight: bold; font-size: 1.4rem; letter-spacing: 3px; margin-top: 10px; }
+    #membershipNumber { font-weight: bold; font-size: 1.6rem; letter-spacing: 3px; margin-top: 10px; color: var(--beni-deep); }
     #offlineNote { display: none; margin: 10px 0 0; font-size: 0.75rem; color: #888; }
 
     /* 店舗情報（古物営業法に基づく表示を含む） */
@@ -60,6 +74,8 @@
 </head>
 <body>
   <div class="container">
+    <div class="kanban">遊びの隠れ家　会員証</div>
+    <div class="card-inner">
     <img src="logo.jpg" id="shop-logo" alt="なんやかん屋 ロゴ">
 
     <div id="loading" style="color: #e3c780;">システム接続中...</div>
@@ -94,6 +110,7 @@
       <div id="barcodeContainer"><svg id="barcode"></svg></div>
       <p id="membershipNumber"></p>
       <p id="offlineNote">オフライン表示（前回取得した会員証）</p>
+    </div>
     </div>
   </div>
 
