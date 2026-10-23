@@ -84,16 +84,15 @@
       <button class="retry-btn" onclick="location.reload()">もう一度試す</button>
     </div>
 
-    <div id="registrationForm" style="display:none;" class="h-adr">
-      <span class="p-country-name" style="display:none;">Japan</span>
+    <div id="registrationForm" style="display:none;">
       <div class="name-row"><input type="text" id="ln" placeholder="苗字"><input type="text" id="fn" placeholder="名前"></div>
       <div class="name-row"><input type="text" id="lnk" placeholder="ミョウジ"><input type="text" id="fnk" placeholder="ナマエ"></div>
       <div class="address-group">
         <p>※郵便番号で住所自動入力</p>
-        <input type="tel" id="zip" class="p-postal-code" placeholder="郵便番号">
-        <input type="text" id="pref" class="p-region" placeholder="都道府県">
-        <input type="text" id="city" class="p-locality p-street-address" placeholder="市区町村・番地">
-        <input type="text" id="bldg" class="p-extended-address" placeholder="建物名">
+        <input type="tel" id="zip" placeholder="郵便番号">
+        <input type="text" id="pref" placeholder="都道府県">
+        <input type="text" id="city" placeholder="市区町村・番地">
+        <input type="text" id="bldg" placeholder="建物名">
       </div>
       <input type="tel" id="phone" placeholder="電話番号">
       <input type="email" id="email" placeholder="メールアドレス（任意）">
@@ -123,8 +122,8 @@
   </footer>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-  <script src="https://yubinbango.github.io/yubinbango/yubinbango.js" charset="UTF-8"></script>
+  <!-- 外部の配信元が改ざんされてもこのページで他人のコードが動かないよう、リポジトリに同梱したものを読む -->
+  <script src="vendor/jsbarcode-3.11.5/JsBarcode.all.js"></script>
   <script>
     // ⚠️⚠️ ここに必ず新しいGASのURLを貼り付けてください！ ⚠️⚠️
     const GAS_URL = "https://script.google.com/macros/s/AKfycbxEb_VUP7S81OM7pjCbOT6i4g6UoQApQTl51YHoA7MyT0gw5Yjx3Y4pomq4txC5gfjpEA/exec";
@@ -144,6 +143,42 @@
     }
 
     function val(id) { return document.getElementById(id).value.trim(); }
+
+    // 郵便番号から住所を埋める。住所データは「文字列として」取得し JSON.parse で読むだけで、実行はしない。
+    // 以前の yubinbango.js は配信元のファイルを <script> で読み込んでいたため、配信元が改ざんされると
+    // そのコードがこのページ内で動き、入力中の個人情報やIDトークンを抜き取れてしまった
+    const ZIP_DATA_URL = "https://raw.githubusercontent.com/yubinbango/yubinbango-data/gh-pages/data/";
+    const PREFS = [null, "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県", "茨城県", "栃木県", "群馬県",
+      "埼玉県", "千葉県", "東京都", "神奈川県", "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県",
+      "静岡県", "愛知県", "三重県", "滋賀県", "京都府", "大阪府", "兵庫県", "奈良県", "和歌山県", "鳥取県", "島根県",
+      "岡山県", "広島県", "山口県", "徳島県", "香川県", "愛媛県", "高知県", "福岡県", "佐賀県", "長崎県", "熊本県",
+      "大分県", "宮崎県", "鹿児島県", "沖縄県"];
+    const zipCache = {};
+
+    async function lookupZip(zip7) {
+      const head = zip7.slice(0, 3);
+      if (!(head in zipCache)) {
+        const res = await fetch(ZIP_DATA_URL + head + ".js");
+        if (!res.ok) return null;
+        // 中身は $yubin({...}); という形。括弧の中のJSONだけを取り出す
+        const text = await res.text();
+        zipCache[head] = JSON.parse(text.slice(text.indexOf("(") + 1, text.lastIndexOf(")")));
+      }
+      const row = zipCache[head][zip7];
+      return Array.isArray(row) ? row : null;
+    }
+
+    document.getElementById('zip').addEventListener('input', async (e) => {
+      const zip7 = toHalf(e.target.value).replace(/[^0-9]/g, '');
+      if (zip7.length !== 7) return;
+      let row;
+      try { row = await lookupZip(zip7); } catch (err) { return; }   // 引けなくても手入力できるので黙って諦める
+      // 待っている間に打ち直されていたら古い結果で上書きしない
+      if (!row || toHalf(e.target.value).replace(/[^0-9]/g, '') !== zip7) return;
+      document.getElementById('pref').value = PREFS[Number(row[0])] || '';
+      document.getElementById('city').value = String(row[1] || '') + String(row[2] || '');
+      document.getElementById('bldg').value = String(row[3] || '');
+    });
 
     // 会員番号の控え。圏外やサーバー障害でも会員証を提示できるようにする。
     // プライベートブラウズ等で localStorage が使えないことがあるので必ず握りつぶす
